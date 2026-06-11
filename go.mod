@@ -1,5 +1,3 @@
-module golang.org/x/sys/unix
+module gosh
 
-go 1.26.1
-
-require golang.org/x/sys v0.43.0 // indirect
+go 1.26.3

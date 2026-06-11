@@ -22,9 +22,10 @@ func main() {
 		if err != nil {
 			fmt.Errorf("hostname: %w", err)
 		}
-		fmt.Printf("%s@%s:%s?>", user.Name, hostname, working_dir)
+		fmt.Printf("%s@%s:%s?> ", user.Name, hostname, working_dir)
 
-		var input [512]byte
+		var input string
 		fmt.Scanln(&input)
+		fmt.Println(input)
 	}
 }
