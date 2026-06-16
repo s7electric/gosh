@@ -3,7 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"os/user"
 	"strconv"
 	"strings"
@@ -33,17 +35,57 @@ func main() {
 }
 
 func eval(input string) (string, error) {
+	tokens, err := parse(input)
+	if err != nil {
+		return "", err
+	}
+	// pass over for sub-evaluations
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i][0] == '$' {
+			tokens[i], err = eval(tokens[i][1:(len(tokens[i]) - 1)])
+			if err != nil {
+				return "", err
+			}
+		}
+	}
 
+	// create job queue
+	var job_queue []*exec.Cmd
+	var argv_buffer []string
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i] == "|" {
+			job := exec.Command(argv_buffer[0], argv_buffer...)
+			job_queue = append(job_queue, job)
+			clear(argv_buffer)
+		} else if tokens[i] == "<" {
+
+		} else if tokens[i] == ">" {
+
+		} else {
+			argv_buffer = append(argv_buffer, tokens[i])
+		}
+	}
+	// execute job queue
+	if len(job_queue) == 1 {
+		job_queue[0].Start()
+	} else {
+		var pipe io.PipeReader
+		pipe, err = job_queue[0].StdoutPipe()
+		if err != nil {
+			return "", err
+		}
+		for i := 1; i < len(job_queue)-1; i++ {
+			job_queue[i].StdinPipe()
+		}
+	}
 }
 
 func parse(input string) ([]string, error) {
 	var output []string
 	for i := 0; i < len(input); {
-		// 1. consume all spaces
 		for input[i] == ' ' {
 			i++
 		}
-		// 2. handle next token
 		if input[i] == '$' {
 			if c_bracket := find_matching_c_bracket(input[i+2:]); c_bracket == -1 || input[i+1] != '(' {
 				return nil, errors.New("syntax error - incorrect usage of '$()'")
