@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -31,6 +32,12 @@ func main() {
 		var input string
 		fmt.Scanln(&input)
 
+		result, err := eval(input)
+		if err != nil {
+			fmt.Errorf("%w", err)
+		} else {
+			fmt.Println(result)
+		}
 	}
 }
 
@@ -42,7 +49,15 @@ func eval(input string) (string, error) {
 	// pass over for sub-evaluations
 	for i := 0; i < len(tokens); i++ {
 		if tokens[i][0] == '$' {
-			tokens[i], err = eval(tokens[i][1:(len(tokens[i]) - 1)])
+			eval_result, err := eval(tokens[i][1:(len(tokens[i]) - 1)])
+			if err != nil {
+				return "", err
+			}
+			parsed_result, err := parse(eval_result)
+			if err != nil {
+				return "", err
+			}
+			tokens = append(append(tokens[0:i], parsed_result...), tokens[i+1:]...)
 			if err != nil {
 				return "", err
 			}
@@ -53,6 +68,7 @@ func eval(input string) (string, error) {
 	var job_queue []*exec.Cmd
 	var argv_buffer []string
 	for i := 0; i < len(tokens); i++ {
+		// FIX THIS
 		if tokens[i] == "|" {
 			job := exec.Command(argv_buffer[0], argv_buffer...)
 			job_queue = append(job_queue, job)
@@ -65,23 +81,29 @@ func eval(input string) (string, error) {
 			argv_buffer = append(argv_buffer, tokens[i])
 		}
 	}
+	// assemble pipes
+	for i := 1; i < len(job_queue); i++ {
+		p0, p1 := io.Pipe()
+		job_queue[i-1].Stdout = p1
+		job_queue[i].Stdin = p0
+	}
+	var buf bytes.Buffer
+	job_queue[len(job_queue)-1].Stdout = &buf
 	// execute job queue
-	if len(job_queue) == 1 {
-		job_queue[0].Start()
-	} else {
-		var pipe io.PipeReader
-		pipe, err = job_queue[0].StdoutPipe()
+	for i := 0; i < len(job_queue); i++ {
+		err := job_queue[i].Start()
 		if err != nil {
 			return "", err
 		}
-		for i := 1; i < len(job_queue)-1; i++ {
-			job_queue[i].StdinPipe()
-		}
 	}
+	for i := 0; i < len(job_queue); i++ {
+		job_queue[i].Wait()
+	}
+	return buf.String(), nil
 }
 
 func parse(input string) ([]string, error) {
-	var output []string
+	var output []string = make([]string, 0, 32)
 	for i := 0; i < len(input); {
 		for input[i] == ' ' {
 			i++
@@ -95,8 +117,13 @@ func parse(input string) ([]string, error) {
 			}
 		} else {
 			next := strings.IndexByte(input, ' ')
-			output = append(output, input[i:next])
-			i = next
+			if next == -1 {
+				output = append(output, input[i:])
+				break
+			} else {
+				output = append(output, input[i:next])
+				i = next
+			}
 		}
 	}
 	return output, nil
