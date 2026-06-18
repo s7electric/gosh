@@ -12,6 +12,13 @@ import (
 	"strings"
 )
 
+func assert(expr bool) {
+	if !expr {
+		panic("assertion failed")
+	}
+
+}
+
 func main() {
 	var stop bool
 	for !stop {
@@ -31,7 +38,7 @@ func main() {
 
 		var input string
 		fmt.Scanln(&input)
-
+		assert(input == "")
 		result, err := eval(input)
 		if err != nil {
 			fmt.Errorf("%w", err)
@@ -63,15 +70,13 @@ func eval(input string) (string, error) {
 			}
 		}
 	}
-
 	// create job queue
-	var job_queue []*exec.Cmd
+	job_queue := make([]*exec.Cmd, 0, 16)
 	var argv_buffer []string
 	for i := 0; i < len(tokens); i++ {
 		// FIX THIS
 		if tokens[i] == "|" {
-			job := exec.Command(argv_buffer[0], argv_buffer...)
-			job_queue = append(job_queue, job)
+			job_queue = append(job_queue, exec.Command(argv_buffer[0], argv_buffer...))
 			clear(argv_buffer)
 		} else if tokens[i] == "<" {
 
@@ -81,6 +86,8 @@ func eval(input string) (string, error) {
 			argv_buffer = append(argv_buffer, tokens[i])
 		}
 	}
+	job_queue = append(job_queue, exec.Command(argv_buffer[0], argv_buffer...))
+	clear(argv_buffer)
 	// assemble pipes
 	for i := 1; i < len(job_queue); i++ {
 		p0, p1 := io.Pipe()
@@ -107,7 +114,11 @@ func parse(input string) ([]string, error) {
 	for i := 0; i < len(input); {
 		for input[i] == ' ' {
 			i++
+			if i >= len(input) {
+				break
+			}
 		}
+		assert(input[i] != ' ')
 		if input[i] == '$' {
 			if c_bracket := find_matching_c_bracket(input[i+2:]); c_bracket == -1 || input[i+1] != '(' {
 				return nil, errors.New("syntax error - incorrect usage of '$()'")
@@ -116,13 +127,13 @@ func parse(input string) ([]string, error) {
 				i = c_bracket + 1
 			}
 		} else {
-			next := strings.IndexByte(input, ' ')
-			if next == -1 {
-				output = append(output, input[i:])
-				break
-			} else {
+			next := strings.IndexByte(input[i:], ' ')
+			if next != -1 {
 				output = append(output, input[i:next])
 				i = next
+			} else {
+				output = append(output, input[i:])
+				break
 			}
 		}
 	}
