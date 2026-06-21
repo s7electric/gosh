@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-func assert(expr bool) {
+func assert(expr bool, str string) {
 	if !expr {
-		panic("assertion failed")
+		panic(str)
 	}
 
 }
@@ -38,7 +38,6 @@ func main() {
 
 		var input string
 		fmt.Scanln(&input)
-		assert(input == "")
 		result, err := eval(input)
 		if err != nil {
 			fmt.Errorf("%w", err)
@@ -118,7 +117,7 @@ func parse(input string) ([]string, error) {
 				break
 			}
 		}
-		assert(input[i] != ' ')
+		assert(input[i] != ' ', "input[i] == ' '")
 		if input[i] == '$' {
 			if c_bracket := find_matching_c_bracket(input[i+2:]); c_bracket == -1 || input[i+1] != '(' {
 				return nil, errors.New("syntax error - incorrect usage of '$()'")
