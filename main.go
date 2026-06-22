@@ -114,7 +114,7 @@ func parse(input string) ([]string, error) {
 		for input[i] == ' ' {
 			i++
 			if i >= len(input) {
-				break
+				return output, nil
 			}
 		}
 		assert(input[i] != ' ', "input[i] == ' '")
